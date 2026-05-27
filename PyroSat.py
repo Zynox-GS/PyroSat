@@ -390,3 +390,49 @@ def busca_bfs_area_risco(
  
     return area_risco   
  
+
+ #  PILHA — HISTÓRICO DE OCORRÊNCIAS (LIFO)
+# ─────────────────────────────────────────────
+ 
+class PilhaOcorrencias:
+    """
+    Pilha LIFO para gerenciar o histórico de ocorrências de uma área.
+ 
+    Operações:
+        push   — registra nova ocorrência
+        pop    — remove a mais recente (usado para "desfazer alerta" / cancelar falso positivo)
+        peek   — consulta a mais recente sem remover
+        buscar — percorre a pilha para relatório
+    """
+ 
+    def __init__(self, area_id: int):
+        self.area_id = area_id
+        self._pilha: list[Ocorrencia] = []
+ 
+    def push(self, ocorrencia: Ocorrencia):
+        """Empilha nova ocorrência (push)."""
+        self._pilha.append(ocorrencia)
+        print(f"  [PILHA] Ocorrência {ocorrencia.id} registrada na área {self.area_id}.")
+ 
+    def pop(self) -> Optional[Ocorrencia]:
+        """Desempilha a ocorrência mais recente (pop — desfazer/cancelar)."""
+        if not self._pilha:
+            print("  [PILHA] Pilha vazia, nenhuma ocorrência para remover.")
+            return None
+        ocorrencia = self._pilha.pop()
+        print(f"  [PILHA] Ocorrência {ocorrencia.id} removida (cancelada/falso positivo).")
+        return ocorrencia
+ 
+    def peek(self) -> Optional[Ocorrencia]:
+        """Retorna a ocorrência mais recente sem remover."""
+        return self._pilha[-1] if self._pilha else None
+ 
+    def listar_historico(self) -> list[Ocorrencia]:
+        """Retorna ocorrências em ordem LIFO (mais recente primeiro)."""
+        return list(reversed(self._pilha))
+ 
+    def total(self) -> int:
+        return len(self._pilha)
+ 
+    def esta_vazia(self) -> bool:
+        return len(self._pilha) == 0
