@@ -391,8 +391,8 @@ def busca_bfs_area_risco(
     return area_risco   
  
 
- #  PILHA — HISTÓRICO DE OCORRÊNCIAS (LIFO)
-# ─────────────────────────────────────────────
+#  PILHA — HISTÓRICO DE OCORRÊNCIAS (LIFO)
+
  
 class PilhaOcorrencias:
     """
@@ -436,3 +436,198 @@ class PilhaOcorrencias:
  
     def esta_vazia(self) -> bool:
         return len(self._pilha) == 0
+    
+
+#  SIMULAÇÃO COMPLETA — DEMO
+
+ 
+def criar_grafo_exemplo(num_celulas: int = 20) -> GrafoMonitoramento:
+    """
+    Gera um grafo de exemplo com num_celulas células interligadas
+    simulando uma região monitorada pelo PyroSat.
+    """
+    random.seed(42)
+    grafo = GrafoMonitoramento()
+ 
+    for i in range(num_celulas):
+        celula = CelulaMonitoramento(
+            id=i,
+            latitude=-12.0 + (i // 5) * 0.01,
+            longitude=-47.0 + (i % 5) * 0.01,
+            municipio=f"Município-{i % 5}",
+            estado="TO",
+            bioma=random.choice(BIOMAS),
+            temperatura=random.uniform(28, 45),
+            umidade=random.uniform(15, 80),
+            velocidade_vento=random.uniform(5, 50),
+            direcao_vento=random.uniform(0, 360),
+            precipitacao_24h=random.uniform(0, 20),
+            ndvi=random.uniform(-0.1, 0.8),
+            tipo_vegetacao=random.choice(["Savana", "Floresta", "Campo", "Mata ciliar"]),
+            densidade_florestal=random.uniform(0.1, 1.0),
+            ocorrencias_historicas=random.randint(0, 8),
+            ultimo_incendio_anos=random.uniform(0, 10),
+            distancia_brigada_km=random.uniform(5, 100),
+            tem_torre_observacao=random.choice([True, False]),
+            tem_sensor_iot=random.choice([True, False]),
+            cobertura_satelite=random.choice(["GOES-16", "Sentinel-2", "VIIRS"]),
+        )
+        grafo.adicionar_celula(celula)
+ 
+    # Conecta células em grade (vizinhos ortogonais e diagonais)
+    for i in range(num_celulas):
+        for j in range(i + 1, num_celulas):
+            if abs(i - j) in [1, 5]:  # vizinhos horizontais/verticais
+                celula_i = grafo.nos[i]
+                celula_j = grafo.nos[j]
+                # Peso = fator de propagação baseado em vento e vegetação
+                peso = (celula_i.velocidade_vento / 50 + celula_i.ndvi) / 2
+                grafo.adicionar_aresta(i, j, round(peso, 3))
+ 
+    return grafo
+ 
+ 
+def gerar_focos_exemplo(grafo: GrafoMonitoramento, qtd: int = 8) -> list[FocoCalor]:
+    """Gera focos de calor sintéticos para demonstração."""
+    random.seed(7)
+    focos = []
+    celulas = list(grafo.nos.values())[:qtd]
+ 
+    for i, celula in enumerate(celulas):
+        # Primeiros 3 focos forçados como condições de incêndio real (didático)
+        if i < 3:
+            temp_brilho = random.uniform(345, 380)
+            ndvi_val = random.uniform(0.4, 0.8)
+            umidade_val = random.uniform(10, 35)
+            celula.temperatura = random.uniform(38, 45)
+            celula.umidade = umidade_val
+            celula.ndvi = ndvi_val
+        else:
+            temp_brilho = random.uniform(295, 340)
+            ndvi_val = celula.ndvi
+            umidade_val = celula.umidade
+ 
+        classificacao = classificar_foco(temp_brilho, ndvi_val, umidade_val)
+        score = calcular_risco(celula)
+ 
+        foco = FocoCalor(
+            prioridade=0.0,
+            id=i,
+            celula_id=celula.id,
+            latitude=celula.latitude,
+            longitude=celula.longitude,
+            temperatura_brilho=temp_brilho,
+            frp=random.uniform(5, 500),
+            classificacao=classificacao,
+            severidade_score=score,
+            nivel_alerta=celula.nivel_risco,
+            fonte_satelite=celula.cobertura_satelite,
+            timestamp=f"2025-06-01 {8 + i:02d}:00:00",
+        )
+        focos.append(foco)
+ 
+    return focos
+ 
+ 
+def executar_simulacao():
+    """
+    Simulação completa do PyroSat integrando todas as estruturas:
+    grafo, fila de prioridade, pilha e funções def.
+    """
+    print("=" * 60)
+    print("   PyroSat — Simulação de Detecção e Alerta de Incêndios")
+    print("=" * 60)
+ 
+    # 1. Constrói o grafo de monitoramento
+    print("\n[1] Construindo grafo de monitoramento...")
+    grafo = criar_grafo_exemplo(num_celulas=20)
+    print(f"    Grafo criado: {grafo.total_nos()} células, {grafo.total_arestas()} arestas")
+ 
+    # 2. Calcula risco de todas as células
+    print("\n[2] Calculando score de risco para cada célula...")
+    for celula in grafo.nos.values():
+        calcular_risco(celula)
+    celulas_alerta = [c for c in grafo.nos.values() if c.nivel_risco in [NIVEL_ALERTA, NIVEL_EMERGENCIA]]
+    print(f"    Células em ALERTA ou EMERGÊNCIA: {len(celulas_alerta)}")
+    for c in celulas_alerta:
+        print(f"      → {c}")
+ 
+    # 3. Detecta e classifica focos de calor
+    print("\n[3] Detectando e classificando focos de calor (satélite)...")
+    focos = gerar_focos_exemplo(grafo, qtd=8)
+    confirmados = [f for f in focos if f.classificacao == CLASSIFICACAO_CONFIRMADO]
+    suspeitos   = [f for f in focos if f.classificacao == CLASSIFICACAO_SUSPEITO]
+    falsos      = [f for f in focos if f.classificacao == CLASSIFICACAO_FALSO]
+    print(f"    Total detectado: {len(focos)} focos")
+    print(f"    Confirmados: {len(confirmados)} | Suspeitos: {len(suspeitos)} | Falsos: {len(falsos)}")
+ 
+    # 4. Escalonamento via fila de prioridade
+    print("\n[4] Escalonando alertas por prioridade (fila heapq)...")
+    fila_escalonada = escalonar_alertas(focos)
+    print(f"    {len(fila_escalonada)} focos confirmados na fila:")
+    for foco in fila_escalonada:
+        print(f"      → {foco} | Órgãos: {foco.orgaos_acionados}")
+ 
+    # 5. Simulação de propagação do fogo (Dijkstra)
+    if confirmados:
+        foco_principal = confirmados[0]
+        print(f"\n[5] Simulando propagação do fogo a partir do foco {foco_principal.id} (Dijkstra, 6h)...")
+        propagacao = propagar_fogo(grafo, foco_inicial_id=foco_principal.celula_id, horas=6)
+        print(f"    Fogo pode atingir {len(propagacao)} células em até 6 horas:")
+        for cid, t in sorted(propagacao.items(), key=lambda x: x[1])[:5]:
+            print(f"      → Célula {cid}: ~{t:.2f}h")
+ 
+        # 6. BFS — delimita área de risco
+        print(f"\n[6] BFS: mapeando área de risco (raio 3 nós ao redor do foco)...")
+        area = busca_bfs_area_risco(grafo, foco_principal.celula_id, raio_nos=3)
+        print(f"    {len(area)} células na área de risco: {area}")
+ 
+    # 7. Pilha de ocorrências (LIFO)
+    print("\n[7] Gerenciando histórico de ocorrências com pilha LIFO...")
+    pilha = PilhaOcorrencias(area_id=1)
+ 
+    oc1 = Ocorrencia(
+        id=1001, focos_ids=[0, 1], area_afetada_ha=120.5,
+        nivel_maximo=NIVEL_ALERTA, duracao_horas=8.0,
+        brigadas_envolvidas=["Brigada Norte", "Brigada Central"],
+        status="ENCERRADA", timestamp_inicio="2025-06-01 08:00",
+        timestamp_fim="2025-06-01 16:00", relatorio_gerado=True
+    )
+    oc2 = Ocorrencia(
+        id=1002, focos_ids=[2], area_afetada_ha=45.0,
+        nivel_maximo=NIVEL_EMERGENCIA, duracao_horas=3.5,
+        brigadas_envolvidas=["Brigada Sul"],
+        status="ATIVA", timestamp_inicio="2025-06-01 14:30"
+    )
+    oc3 = Ocorrencia(
+        id=1003, focos_ids=[5], area_afetada_ha=0.0,
+        nivel_maximo=NIVEL_ATENCAO, duracao_horas=0.5,
+        brigadas_envolvidas=[],
+        status="ENCERRADA", timestamp_inicio="2025-06-01 15:00",
+        timestamp_fim="2025-06-01 15:30"
+    )
+ 
+    pilha.push(oc1)
+    pilha.push(oc2)
+    pilha.push(oc3)
+ 
+    print(f"    Total na pilha: {pilha.total()} ocorrências")
+    print(f"    Mais recente (peek): Ocorrência {pilha.peek().id}")
+ 
+    print("\n    Cancelando última ocorrência (falso positivo — pop):")
+    pilha.pop()
+    print(f"    Total após remoção: {pilha.total()}")
+ 
+    print("\n    Histórico LIFO (mais recente primeiro):")
+    for oc in pilha.listar_historico():
+        print(f"      → Ocorrência {oc.id} | Status: {oc.status} | Área: {oc.area_afetada_ha}ha")
+ 
+    print("\n" + "=" * 60)
+    print("   Simulação concluída com sucesso!")
+    print("=" * 60)
+ 
+ 
+#  ENTRYPOINT
+ 
+if __name__ == "__main__":
+    executar_simulacao()    
