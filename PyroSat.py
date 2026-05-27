@@ -162,4 +162,231 @@ class GrafoMonitoramento:
  
     def total_arestas(self) -> int:
         return sum(len(v) for v in self.arestas.values()) // 2
+    
+
+ #  FUNÇÕES DEF — LÓGICA DE DOMÍNIO
+# ─────────────────────────────────────────────
+ 
+def calcular_risco(celula: CelulaMonitoramento) -> float:
+    """
+    Calcula o score de risco de incêndio de uma célula (0-100).
+ 
+    Considera temperatura, umidade, vento, NDVI, precipitação e histórico.
+    Retorna o score e atualiza celula.score_risco e celula.nivel_risco.
+ 
+    Args:
+        celula: CelulaMonitoramento com atributos ambientais preenchidos
+ 
+    Returns:
+        float: score de risco entre 0 e 100
+    """
+    score = 0.0
+ 
+    # Temperatura (peso 25): > 35°C começa a pontuar
+    if celula.temperatura > 35:
+        score += min(25, (celula.temperatura - 35) * 2.5)
+ 
+    # Umidade relativa (peso 30): inversamente proporcional
+    score += (1 - celula.umidade / 100) * 30
+ 
+    # Velocidade do vento (peso 20): > 20 km/h acelera propagação
+    if celula.velocidade_vento > 20:
+        score += min(20, (celula.velocidade_vento - 20) * 0.5)
+ 
+    # NDVI (peso 15): vegetação densa seca = maior risco
+    if celula.ndvi > 0.3:
+        score += celula.ndvi * 15
+ 
+    # Precipitação últimas 24h (peso 10): chuva reduz risco
+    if celula.precipitacao_24h < 5:
+        score += (1 - celula.precipitacao_24h / 5) * 10
+ 
+    # Bônus histórico: regiões com recorrência têm risco aumentado
+    if celula.ocorrencias_historicas > 3:
+        score = min(100, score * 1.15)
+ 
+    score = round(min(100.0, max(0.0, score)), 2)
+    celula.score_risco = score
+ 
+    # Mapeia score para nível de risco
+    if score >= 80:
+        celula.nivel_risco = NIVEL_EMERGENCIA
+    elif score >= 60:
+        celula.nivel_risco = NIVEL_ALERTA
+    elif score >= 40:
+        celula.nivel_risco = NIVEL_ATENCAO
+    else:
+        celula.nivel_risco = NIVEL_MONITORAMENTO
+ 
+    return score
+ 
+ 
+def classificar_foco(temperatura_brilho: float, ndvi: float, umidade: float) -> str:
+    """
+    Classifica um foco de calor detectado por satélite.
+ 
+    Lógica de decisão que simula o modelo de IA do PyroSat.
+    Reproduz a regra RN01: foco só gera alerta se CONFIRMADO.
+ 
+    Args:
+        temperatura_brilho: temperatura de brilho em Kelvin (GOES-16 Band 7)
+        ndvi:               índice de vegetação normalizado (-1.0 a 1.0)
+        umidade:            umidade relativa do ar em percentual (0-100)
+ 
+    Returns:
+        str: "CONFIRMADO", "SUSPEITO" ou "FALSO"
+    """
+    # Foco falso: área sem vegetação (solo exposto, água, urbano)
+    if ndvi < 0.1:
+        return CLASSIFICACAO_FALSO
+ 
+    # Foco confirmado: alta temperatura + vegetação + baixa umidade
+    if temperatura_brilho > 340 and ndvi > 0.3 and umidade < 40:
+        return CLASSIFICACAO_CONFIRMADO
+ 
+    # Zona de incerteza: suspeito, aguarda confirmação do operador
+    if temperatura_brilho > 310 and ndvi > 0.15:
+        return CLASSIFICACAO_SUSPEITO
+ 
+    return CLASSIFICACAO_FALSO
+ 
+ 
+def propagar_fogo(
+    grafo: GrafoMonitoramento,
+    foco_inicial_id: int,
+    horas: int = 6
+) -> dict[int, float]:
+    """
+    Simula a propagação do fogo a partir de um foco usando Dijkstra.
+ 
+    O peso das arestas representa o fator de propagação (vento + vegetação +
+    umidade), então o caminho de menor custo = propagação mais provável.
+    Retorna o tempo estimado (em horas) para o fogo atingir cada célula.
+ 
+    Args:
+        grafo:           GrafoMonitoramento com células e arestas configuradas
+        foco_inicial_id: ID da célula onde o foco foi detectado
+        horas:           janela de tempo máxima para simulação
+ 
+    Returns:
+        dict: {celula_id: horas_para_atingir} — células acessíveis na janela
+    """
+    if foco_inicial_id not in grafo.nos:
+        raise ValueError(f"Célula {foco_inicial_id} não existe no grafo.")
+ 
+    # distancias[id] = horas para o fogo chegar (Dijkstra)
+    distancias: dict[int, float] = {foco_inicial_id: 0.0}
+    heap = [(0.0, foco_inicial_id)]   # (tempo_acumulado, celula_id)
+ 
+    while heap:
+        tempo_atual, celula_id = heapq.heappop(heap)
+ 
+        if tempo_atual > distancias.get(celula_id, math.inf):
+            continue  # caminho obsoleto
+ 
+        if tempo_atual > horas:
+            continue  # fora da janela de simulação
+ 
+        for vizinho_id, peso_aresta in grafo.vizinhos(celula_id):
+            # Tempo para cruzar aresta = inverso do fator de propagação
+            # Peso alto = propagação rápida; convertemos para horas
+            tempo_propagacao = 1.0 / (peso_aresta + 0.01)
+            novo_tempo = tempo_atual + tempo_propagacao
+ 
+            if novo_tempo < distancias.get(vizinho_id, math.inf):
+                distancias[vizinho_id] = novo_tempo
+                heapq.heappush(heap, (novo_tempo, vizinho_id))
+ 
+    # Retorna apenas células alcançáveis dentro da janela
+    return {cid: t for cid, t in distancias.items() if t <= horas}
+ 
+ 
+def escalonar_alertas(fila_focos: list[FocoCalor]) -> list[FocoCalor]:
+    """
+    Prioriza e escalona alertas usando fila de prioridade (heapq).
+ 
+    Implementa o protocolo de acionamento em cascata (RN02):
+    - Foco EMERGÊNCIA (score 80-100): topo da fila, aciona todos os órgãos
+    - Foco ALERTA (score 60-79): aciona Brigada + IBAMA + Defesa Civil
+    - Foco ATENÇÃO (score 40-59): aciona Brigada + ICMBio
+    - Foco MONITORAMENTO (score < 40): apenas registro interno
+ 
+    Args:
+        fila_focos: lista de FocoCalor a ser priorizada
+ 
+    Returns:
+        list[FocoCalor]: focos ordenados por prioridade (mais urgente primeiro)
+    """
+    heap: list[FocoCalor] = []
+ 
+    for foco in fila_focos:
+        if foco.classificacao != CLASSIFICACAO_CONFIRMADO:
+            continue  # RN01: só focos confirmados geram alertas
+ 
+        # Define órgãos conforme severidade (RN02 — cascata)
+        if foco.severidade_score >= 80:
+            foco.nivel_alerta = NIVEL_EMERGENCIA
+            foco.orgaos_acionados = ["ICMBio", "IBAMA", "Defesa Civil", "Bombeiros", "INPE"]
+            foco.prioridade = -foco.severidade_score          # negativo = max-heap via min-heap
+ 
+        elif foco.severidade_score >= 60:
+            foco.nivel_alerta = NIVEL_ALERTA
+            foco.orgaos_acionados = ["Brigada Local", "IBAMA", "Defesa Civil"]
+            foco.prioridade = -foco.severidade_score
+ 
+        elif foco.severidade_score >= 40:
+            foco.nivel_alerta = NIVEL_ATENCAO
+            foco.orgaos_acionados = ["Brigada Local", "ICMBio"]
+            foco.prioridade = -foco.severidade_score
+ 
+        else:
+            foco.nivel_alerta = NIVEL_MONITORAMENTO
+            foco.orgaos_acionados = []
+            foco.prioridade = -foco.severidade_score
+ 
+        heapq.heappush(heap, foco)
+ 
+    # Extrai em ordem de prioridade (maior score primeiro)
+    resultado = []
+    while heap:
+        resultado.append(heapq.heappop(heap))
+ 
+    return resultado
+ 
+ 
+def busca_bfs_area_risco(
+    grafo: GrafoMonitoramento,
+    celula_origem_id: int,
+    raio_nos: int = 5
+) -> list[int]:
+    """
+    BFS para encontrar todas as células dentro de um raio de nós a partir
+    de uma célula de origem. Útil para delimitar área de risco ao redor
+    de um foco confirmado.
+ 
+    Args:
+        grafo:            GrafoMonitoramento
+        celula_origem_id: ID da célula central (foco)
+        raio_nos:         quantos "saltos" de célula incluir
+ 
+    Returns:
+        list[int]: IDs das células na área de risco
+    """
+    visitados = {celula_origem_id}
+    fila = deque([(celula_origem_id, 0)])
+    area_risco = [celula_origem_id]
+ 
+    while fila:
+        celula_id, profundidade = fila.popleft()
+ 
+        if profundidade >= raio_nos:
+            continue
+ 
+        for vizinho_id, _ in grafo.vizinhos(celula_id):
+            if vizinho_id not in visitados:
+                visitados.add(vizinho_id)
+                fila.append((vizinho_id, profundidade + 1))
+                area_risco.append(vizinho_id)
+ 
+    return area_risco   
  
