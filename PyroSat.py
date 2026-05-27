@@ -129,3 +129,37 @@ class Ocorrencia:
     timestamp_inicio: str
     timestamp_fim: Optional[str] = None
     relatorio_gerado: bool = False
+
+
+#  GRAFO DE MONITORAMENTO
+
+ 
+class GrafoMonitoramento:
+    """
+    Grafo de adjacência onde cada nó é uma CelulaMonitoramento de 1km².
+    Arestas conectam células vizinhas com peso = fator de propagação do fogo.
+    """
+ 
+    def __init__(self):
+        self.nos: dict[int, CelulaMonitoramento] = {}
+        self.arestas: dict[int, list[tuple[int, float]]] = {}  # {id: [(vizinho_id, peso)]}
+ 
+    def adicionar_celula(self, celula: CelulaMonitoramento):
+        self.nos[celula.id] = celula
+        if celula.id not in self.arestas:
+            self.arestas[celula.id] = []
+ 
+    def adicionar_aresta(self, id_origem: int, id_destino: int, peso: float):
+        """Adiciona aresta bidirecional entre células vizinhas."""
+        self.arestas[id_origem].append((id_destino, peso))
+        self.arestas[id_destino].append((id_origem, peso))
+ 
+    def vizinhos(self, id_celula: int) -> list[tuple[int, float]]:
+        return self.arestas.get(id_celula, [])
+ 
+    def total_nos(self) -> int:
+        return len(self.nos)
+ 
+    def total_arestas(self) -> int:
+        return sum(len(v) for v in self.arestas.values()) // 2
+ 
