@@ -313,6 +313,3 @@ Foco detectado (satélite)
 
 ---
 
-
-feat: adiciona simulação completa integrando grafo, fila e pilha
-```
