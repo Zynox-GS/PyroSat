@@ -1,4 +1,4 @@
-```markdown
+
 # PyroSat 
 
 > Módulo de **Programação Dinâmica** do sistema PyroSat: detecção e alerta precoce de incêndios florestais via satélite e IA.
