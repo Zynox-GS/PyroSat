@@ -56,30 +56,60 @@ class CelulaMonitoramento:
     velocidade_vento: float     # km/h
     direcao_vento: float        # graus (0-360)
     precipitacao_24h: float     # mm
+    pressao_atmosferica: float  # hPa
+    indice_calor: float         # °C — sensação térmica
+    ponto_orvalho: float        # °C — temperatura de condensação
+    radiacao_solar: float       # W/m² — irradiância solar
+    visibilidade_km: float      # km — visibilidade atmosférica
  
     # Cobertura vegetal
     ndvi: float                 # -1.0 a 1.0 (índice vegetação)
     tipo_vegetacao: str
     densidade_florestal: float  # 0.0 a 1.0
+    altura_media_vegetacao_m: float       # metros
+    percentual_vegetacao_seca: float      # 0–100%
+    carga_combustivel_ton_ha: float       # ton/ha de material combustível
+    indice_umidade_combustivel: float     # 0–300 (FMC)
+    especie_dominante: str                # espécie vegetal predominante
  
     # Risco calculado
-    score_risco: float = 0.0    # 0-100 (calculado por calcular_risco)
+    score_risco: float = 0.0                 # 0-100 (calculado por calcular_risco)
     nivel_risco: str = NIVEL_MONITORAMENTO
+    indice_fwi: float = 0.0                  # Fire Weather Index (0–100)
+    probabilidade_propagacao: float = 0.0    # 0.0–1.0
+    velocidade_propagacao_kmh: float = 0.0   # km/h estimada da frente de fogo
  
     # Estado do foco
     tem_foco_ativo: bool = False
     classificacao_foco: Optional[str] = None
     timestamp_deteccao: Optional[str] = None
+    area_queimada_ha: float = 0.0       # hectares já consumidos
+    perimetro_fogo_km: float = 0.0      # km de perímetro ativo
  
     # Histórico
     ocorrencias_historicas: int = 0
     ultimo_incendio_anos: float = 0.0
+    area_total_queimada_historica_ha: float = 0.0
+    recorrencia_media_anos: float = 0.0
+    maior_incendio_registrado_ha: float = 0.0
  
     # Infraestrutura
     distancia_brigada_km: float = 0.0
     tem_torre_observacao: bool = False
     tem_sensor_iot: bool = False
+    distancia_estrada_km: float = 0.0
+    distancia_corpo_hidrico_km: float = 0.0
+    tem_aceiro: bool = False
+    capacidade_tanque_agua_l: float = 0.0
     cobertura_satelite: str = "GOES-16"
+
+    # Dados de satélite
+    temperatura_superficie_k: float = 0.0
+    reflectancia_banda_swir: float = 0.0
+    anomalia_termica_mw: float = 0.0
+    ultima_passagem_satelite: Optional[str] = None
+    indice_nbr: float = 0.0
+    indice_evi: float = 0.0
  
     def __repr__(self):
         return (
@@ -462,15 +492,38 @@ def criar_grafo_exemplo(num_celulas: int = 20) -> GrafoMonitoramento:
             velocidade_vento=random.uniform(5, 50),
             direcao_vento=random.uniform(0, 360),
             precipitacao_24h=random.uniform(0, 20),
+            pressao_atmosferica=random.uniform(980, 1020),
+            indice_calor=random.uniform(30, 50),
+            ponto_orvalho=random.uniform(10, 25),
+            radiacao_solar=random.uniform(200, 1000),
+            visibilidade_km=random.uniform(5, 50),
             ndvi=random.uniform(-0.1, 0.8),
             tipo_vegetacao=random.choice(["Savana", "Floresta", "Campo", "Mata ciliar"]),
             densidade_florestal=random.uniform(0.1, 1.0),
+            altura_media_vegetacao_m=random.uniform(0.5, 30.0),
+            percentual_vegetacao_seca=random.uniform(10, 90),
+            carga_combustivel_ton_ha=random.uniform(2, 25),
+            indice_umidade_combustivel=random.uniform(5, 200),
+            especie_dominante=random.choice(["Cerradão", "Buriti", "Ipê", "Aroeira", "Capim-colonião"]),
             ocorrencias_historicas=random.randint(0, 8),
             ultimo_incendio_anos=random.uniform(0, 10),
+            area_total_queimada_historica_ha=random.uniform(0, 5000),
+            recorrencia_media_anos=random.uniform(1, 15),
+            maior_incendio_registrado_ha=random.uniform(100, 10000),
             distancia_brigada_km=random.uniform(5, 100),
             tem_torre_observacao=random.choice([True, False]),
             tem_sensor_iot=random.choice([True, False]),
+            distancia_estrada_km=random.uniform(1, 50),
+            distancia_corpo_hidrico_km=random.uniform(0.5, 30),
+            tem_aceiro=random.choice([True, False]),
+            capacidade_tanque_agua_l=random.uniform(0, 50000),
             cobertura_satelite=random.choice(["GOES-16", "Sentinel-2", "VIIRS"]),
+            temperatura_superficie_k=random.uniform(290, 340),
+            reflectancia_banda_swir=random.uniform(0.0, 0.5),
+            anomalia_termica_mw=random.uniform(0, 200),
+            ultima_passagem_satelite=f"2025-06-01 {6 + (i % 12):02d}:00:00",
+            indice_nbr=random.uniform(-0.5, 0.8),
+            indice_evi=random.uniform(0.0, 0.9),
         )
         grafo.adicionar_celula(celula)
  
