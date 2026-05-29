@@ -1,3 +1,4 @@
+```markdown
 # PyroSat 
 
 > Módulo de **Programação Dinâmica** do sistema PyroSat: detecção e alerta precoce de incêndios florestais via satélite e IA.
@@ -37,7 +38,7 @@ Cada nó do grafo é uma `CelulaMonitoramento` representando 1km² de territóri
 [Célula 5] ── 0.61 ── [Célula 6] ── 0.44 ── [Célula 7]
 ```
 
-- **Nós:** células de monitoramento com 25+ atributos cada
+- **Nós:** células de monitoramento com 53 atributos cada
 - **Arestas:** bidirecionais, peso = `(velocidade_vento / 50 + ndvi) / 2`
 - **Travessia:** BFS para área de risco, Dijkstra para propagação temporal
 
@@ -141,27 +142,42 @@ BFS a partir de um foco confirmado para delimitar a área de risco ao redor. Ret
 ### `CelulaMonitoramento` (nó do grafo)
 
 ```python
-# Identificação
+# Identificação (6)
 id, latitude, longitude, municipio, estado, bioma
 
-# Condições ambientais
-temperatura, umidade, velocidade_vento, direcao_vento, precipitacao_24h
+# Condições ambientais (10)
+temperatura, umidade, velocidade_vento, direcao_vento, precipitacao_24h,
+pressao_atmosferica, indice_calor, ponto_orvalho, radiacao_solar, visibilidade_km
 
-# Cobertura vegetal
-ndvi, tipo_vegetacao, densidade_florestal
+# Cobertura vegetal (8)
+ndvi, tipo_vegetacao, densidade_florestal, altura_media_vegetacao_m,
+percentual_vegetacao_seca, carga_combustivel_ton_ha,
+indice_umidade_combustivel, especie_dominante
 
-# Risco calculado
-score_risco, nivel_risco
+# Risco calculado (5)
+score_risco, nivel_risco, indice_fwi,
+probabilidade_propagacao, velocidade_propagacao_kmh
 
-# Estado do foco
-tem_foco_ativo, classificacao_foco, timestamp_deteccao
+# Estado do foco (5)
+tem_foco_ativo, classificacao_foco, timestamp_deteccao,
+area_queimada_ha, perimetro_fogo_km
 
-# Histórico
-ocorrencias_historicas, ultimo_incendio_anos
+# Histórico (5)
+ocorrencias_historicas, ultimo_incendio_anos,
+area_total_queimada_historica_ha, recorrencia_media_anos,
+maior_incendio_registrado_ha
 
-# Infraestrutura
-distancia_brigada_km, tem_torre_observacao, tem_sensor_iot, cobertura_satelite
+# Infraestrutura (8)
+distancia_brigada_km, tem_torre_observacao, tem_sensor_iot,
+distancia_estrada_km, distancia_corpo_hidrico_km,
+tem_aceiro, capacidade_tanque_agua_l, cobertura_satelite
+
+# Dados de satélite (6)
+temperatura_superficie_k, reflectancia_banda_swir, anomalia_termica_mw,
+ultima_passagem_satelite, indice_nbr, indice_evi
 ```
+
+**Total: 53 atributos por nó do grafo.**
 
 ### `FocoCalor` (elemento da fila de prioridade)
 
@@ -312,4 +328,3 @@ Foco detectado (satélite)
 | RN06 | Histórico de ocorrências retido por área monitorada | `PilhaOcorrencias` por `area_id` |
 
 ---
-
