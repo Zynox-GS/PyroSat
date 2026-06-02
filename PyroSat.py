@@ -12,6 +12,7 @@ Estruturas utilizadas:
 import heapq
 import math
 import random
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
@@ -51,40 +52,40 @@ class CelulaMonitoramento:
     bioma: str
  
     # Condições ambientais
-    temperatura: float          # °C
-    umidade: float              # % relativa
-    velocidade_vento: float     # km/h
-    direcao_vento: float        # graus (0-360)
-    precipitacao_24h: float     # mm
-    pressao_atmosferica: float  # hPa
-    indice_calor: float         # °C — sensação térmica
-    ponto_orvalho: float        # °C — temperatura de condensação
-    radiacao_solar: float       # W/m² — irradiância solar
-    visibilidade_km: float      # km — visibilidade atmosférica
+    temperatura: float       
+    umidade: float           
+    velocidade_vento: float     
+    direcao_vento: float       
+    precipitacao_24h: float    
+    pressao_atmosferica: float  
+    indice_calor: float         
+    ponto_orvalho: float        
+    radiacao_solar: float      
+    visibilidade_km: float      
  
     # Cobertura vegetal
-    ndvi: float                 # -1.0 a 1.0 (índice vegetação)
+    ndvi: float               
     tipo_vegetacao: str
-    densidade_florestal: float  # 0.0 a 1.0
-    altura_media_vegetacao_m: float       # metros
-    percentual_vegetacao_seca: float      # 0–100%
-    carga_combustivel_ton_ha: float       # ton/ha de material combustível
-    indice_umidade_combustivel: float     # 0–300 (FMC)
-    especie_dominante: str                # espécie vegetal predominante
+    densidade_florestal: float  
+    altura_media_vegetacao_m: float      
+    percentual_vegetacao_seca: float     
+    carga_combustivel_ton_ha: float       
+    indice_umidade_combustivel: float     
+    especie_dominante: str                
  
     # Risco calculado
-    score_risco: float = 0.0                 # 0-100 (calculado por calcular_risco)
+    score_risco: float = 0.0                 
     nivel_risco: str = NIVEL_MONITORAMENTO
-    indice_fwi: float = 0.0                  # Fire Weather Index (0–100)
-    probabilidade_propagacao: float = 0.0    # 0.0–1.0
-    velocidade_propagacao_kmh: float = 0.0   # km/h estimada da frente de fogo
+    indice_fwi: float = 0.0                  
+    probabilidade_propagacao: float = 0.0   
+    velocidade_propagacao_kmh: float = 0.0   
  
     # Estado do foco
     tem_foco_ativo: bool = False
     classificacao_foco: Optional[str] = None
     timestamp_deteccao: Optional[str] = None
-    area_queimada_ha: float = 0.0       # hectares já consumidos
-    perimetro_fogo_km: float = 0.0      # km de perímetro ativo
+    area_queimada_ha: float = 0.0       
+    perimetro_fogo_km: float = 0.0      
  
     # Histórico
     ocorrencias_historicas: int = 0
@@ -104,7 +105,7 @@ class CelulaMonitoramento:
     cobertura_satelite: str = "GOES-16"
 
     # Dados de satélite
-    temperatura_superficie_k: float = 0.0
+    temperatura_superficie_c: float = 0.0   # temperatura de superfície em °C
     reflectancia_banda_swir: float = 0.0
     anomalia_termica_mw: float = 0.0
     ultima_passagem_satelite: Optional[str] = None
@@ -121,16 +122,13 @@ class CelulaMonitoramento:
 @dataclass(order=True)
 class FocoCalor:
     
-    #Representa um foco de calor detectado.
-    #Usado na fila de prioridade — order=True permite comparação direta.
-    
-    prioridade: float = field(compare=True)   # invertido: menor = maior urgência
+    prioridade: float = field(compare=True)   
     id: int = field(compare=False)
     celula_id: int = field(compare=False)
     latitude: float = field(compare=False)
     longitude: float = field(compare=False)
-    temperatura_brilho: float = field(compare=False)   # Kelvin (GOES-16 FRP)
-    frp: float = field(compare=False)                  # Fire Radiative Power (MW)
+    temperatura_brilho: float = field(compare=False)  # temperatura de brilho em °C
+    frp: float = field(compare=False)                  
     classificacao: str = field(compare=False, default=CLASSIFICACAO_SUSPEITO)
     severidade_score: float = field(compare=False, default=0.0)
     nivel_alerta: str = field(compare=False, default=NIVEL_MONITORAMENTO)
@@ -259,23 +257,23 @@ def classificar_foco(temperatura_brilho: float, ndvi: float, umidade: float) -> 
     Reproduz a regra RN01: foco só gera alerta se CONFIRMADO.
  
     Args:
-        temperatura_brilho: temperatura de brilho em Kelvin (GOES-16 Band 7)
+        temperatura_brilho: temperatura de brilho em °C (GOES-16 Band 7)
         ndvi:               índice de vegetação normalizado (-1.0 a 1.0)
         umidade:            umidade relativa do ar em percentual (0-100)
  
     Returns:
         str: "CONFIRMADO", "SUSPEITO" ou "FALSO"
     """
-    # Foco falso: área sem vegetação (solo exposto, água, urbano)
+   
     if ndvi < 0.1:
         return CLASSIFICACAO_FALSO
  
-    # Foco confirmado: alta temperatura + vegetação + baixa umidade
-    if temperatura_brilho > 340 and ndvi > 0.3 and umidade < 40:
+    
+    if temperatura_brilho > 67 and ndvi > 0.3 and umidade < 40:
         return CLASSIFICACAO_CONFIRMADO
  
     # Zona de incerteza: suspeito, aguarda confirmação do operador
-    if temperatura_brilho > 310 and ndvi > 0.15:
+    if temperatura_brilho > 37 and ndvi > 0.15:
         return CLASSIFICACAO_SUSPEITO
  
     return CLASSIFICACAO_FALSO
@@ -306,20 +304,19 @@ def propagar_fogo(
  
     # distancias[id] = horas para o fogo chegar (Dijkstra)
     distancias: dict[int, float] = {foco_inicial_id: 0.0}
-    heap = [(0.0, foco_inicial_id)]   # (tempo_acumulado, celula_id)
+    heap = [(0.0, foco_inicial_id)] 
  
     while heap:
         tempo_atual, celula_id = heapq.heappop(heap)
  
         if tempo_atual > distancias.get(celula_id, math.inf):
-            continue  # caminho obsoleto
+            continue  
  
         if tempo_atual > horas:
-            continue  # fora da janela de simulação
+            continue 
  
         for vizinho_id, peso_aresta in grafo.vizinhos(celula_id):
-            # Tempo para cruzar aresta = inverso do fator de propagação
-            # Peso alto = propagação rápida; convertemos para horas
+            
             tempo_propagacao = 1.0 / (peso_aresta + 0.01)
             novo_tempo = tempo_atual + tempo_propagacao
  
@@ -518,7 +515,7 @@ def criar_grafo_exemplo(num_celulas: int = 20) -> GrafoMonitoramento:
             tem_aceiro=random.choice([True, False]),
             capacidade_tanque_agua_l=random.uniform(0, 50000),
             cobertura_satelite=random.choice(["GOES-16", "Sentinel-2", "VIIRS"]),
-            temperatura_superficie_k=random.uniform(290, 340),
+            temperatura_superficie_c=random.uniform(290 - 273.15, 340 - 273.15),  # ~16.85°C a 66.85°C
             reflectancia_banda_swir=random.uniform(0.0, 0.5),
             anomalia_termica_mw=random.uniform(0, 200),
             ultima_passagem_satelite=f"2025-06-01 {6 + (i % 12):02d}:00:00",
@@ -547,16 +544,15 @@ def gerar_focos_exemplo(grafo: GrafoMonitoramento, qtd: int = 8) -> list[FocoCal
     celulas = list(grafo.nos.values())[:qtd]
  
     for i, celula in enumerate(celulas):
-        # Primeiros 3 focos forçados como condições de incêndio real (didático)
         if i < 3:
-            temp_brilho = random.uniform(345, 380)
+            temp_brilho = random.uniform(72,107)
             ndvi_val = random.uniform(0.4, 0.8)
             umidade_val = random.uniform(10, 35)
             celula.temperatura = random.uniform(38, 45)
             celula.umidade = umidade_val
             celula.ndvi = ndvi_val
         else:
-            temp_brilho = random.uniform(295, 340)
+            temp_brilho = random.uniform(22,67)
             ndvi_val = celula.ndvi
             umidade_val = celula.umidade
  
@@ -595,6 +591,7 @@ def executar_simulacao():
     print("\n[1] Construindo grafo de monitoramento...")
     grafo = criar_grafo_exemplo(num_celulas=20)
     print(f"    Grafo criado: {grafo.total_nos()} células, {grafo.total_arestas()} arestas")
+    time.sleep(2)
  
     # 2. Calcula risco de todas as células
     print("\n[2] Calculando score de risco para cada célula...")
@@ -604,6 +601,7 @@ def executar_simulacao():
     print(f"    Células em ALERTA ou EMERGÊNCIA: {len(celulas_alerta)}")
     for c in celulas_alerta:
         print(f"      → {c}")
+    time.sleep(2)
  
     # 3. Detecta e classifica focos de calor
     print("\n[3] Detectando e classificando focos de calor (satélite)...")
@@ -613,6 +611,7 @@ def executar_simulacao():
     falsos      = [f for f in focos if f.classificacao == CLASSIFICACAO_FALSO]
     print(f"    Total detectado: {len(focos)} focos")
     print(f"    Confirmados: {len(confirmados)} | Suspeitos: {len(suspeitos)} | Falsos: {len(falsos)}")
+    time.sleep(2)
  
     # 4. Escalonamento via fila de prioridade
     print("\n[4] Escalonando alertas por prioridade (fila heapq)...")
@@ -620,6 +619,7 @@ def executar_simulacao():
     print(f"    {len(fila_escalonada)} focos confirmados na fila:")
     for foco in fila_escalonada:
         print(f"      → {foco} | Órgãos: {foco.orgaos_acionados}")
+    time.sleep(2)
  
     # 5. Simulação de propagação do fogo (Dijkstra)
     if confirmados:
@@ -629,11 +629,13 @@ def executar_simulacao():
         print(f"    Fogo pode atingir {len(propagacao)} células em até 6 horas:")
         for cid, t in sorted(propagacao.items(), key=lambda x: x[1])[:5]:
             print(f"      → Célula {cid}: ~{t:.2f}h")
+        time.sleep(2)
  
         # 6. BFS — delimita área de risco
         print(f"\n[6] BFS: mapeando área de risco (raio 3 nós ao redor do foco)...")
         area = busca_bfs_area_risco(grafo, foco_principal.celula_id, raio_nos=3)
         print(f"    {len(area)} células na área de risco: {area}")
+        time.sleep(2)
  
     # 7. Pilha de ocorrências (LIFO)
     print("\n[7] Gerenciando histórico de ocorrências com pilha LIFO...")
@@ -663,6 +665,7 @@ def executar_simulacao():
     pilha.push(oc1)
     pilha.push(oc2)
     pilha.push(oc3)
+    time.sleep(2)
  
     print(f"    Total na pilha: {pilha.total()} ocorrências")
     print(f"    Mais recente (peek): Ocorrência {pilha.peek().id}")
@@ -683,4 +686,4 @@ def executar_simulacao():
 #  ENTRYPOINT
  
 if __name__ == "__main__":
-    executar_simulacao()    
+    executar_simulacao()
