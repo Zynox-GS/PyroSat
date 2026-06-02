@@ -1,86 +1,50 @@
-# 🔥 PyroSat
+PyroSat Global 🌍
+Sistema de Detecção e Alerta Precoce de Incêndios Florestais
 
-Sistema de detecção e alerta precoce de incêndios florestais baseado em dados de satélite, sensores IoT e análise de risco ambiental.
+O PyroSat Global é um simulador avançado desenvolvido em Python que processa dados ambientais e de satélite para detectar, classificar e prever a propagação de incêndios florestais em escala global. O sistema utiliza estruturas de dados complexas para garantir uma resposta rápida e escalonada a emergências.
 
----
+Funcionalidades e Estruturas Utilizadas
+O motor lógico do sistema é construído sobre quatro estruturas fundamentais:
 
-## Sobre o projeto
+Grafos de Adjacência: Mapeamento de células de monitoramento (1 km²) com pesos dinâmicos baseados no vento e vegetação.
 
-O PyroSat monitora regiões florestais divididas em células de 1km², calcula o risco de incêndio de cada célula, detecta focos de calor via satélite e escalona alertas para os órgãos responsáveis. A simulação de propagação do fogo usa o algoritmo de Dijkstra para estimar quais células podem ser atingidas em uma janela de tempo.
+Busca em Largura (BFS): Delimitação rápida de zonas de risco globais para evacuação.
 
----
+Algoritmo de Dijkstra: Previsão e simulação da propagação do fogo ao longo do tempo.
 
-## Estruturas de dados
+Fila de Prioridade (heapq): Escalonamento de alertas (Max-Heap), priorizando focos com maior severidade.
 
-| Estrutura | Uso |
-|---|---|
-| Grafo de adjacência | Células de monitoramento interligadas por fator de propagação |
-| Fila de prioridade (`heapq`) | Escalonamento de alertas por severidade |
-| Pilha LIFO | Histórico de ocorrências por área |
-| BFS | Delimitação da área de risco ao redor de um foco |
-| Dijkstra | Simulação de propagação do fogo |
+Pilha (LIFO): Gerenciamento do histórico de ocorrências, permitindo auditoria e reversão de falsos positivos.
 
----
+ Como Executar
+O projeto foi construído utilizando apenas bibliotecas nativas do Python, não exigindo instalações de pacotes externos.
 
-## Principais componentes
+Pré-requisitos: Python 3.9 ou superior.
 
-### `CelulaMonitoramento`
-Representa uma célula de 1km² com mais de 40 atributos: condições ambientais, cobertura vegetal, dados de satélite, infraestrutura e histórico de incêndios.
+Clone este repositório:
 
-### `FocoCalor`
-Registro de um foco detectado por satélite (GOES-16, Sentinel-2, VIIRS), com classificação, severidade e órgãos acionados.
+Bash
+git clone https://github.com/SEU_USUARIO/pyrosat-global.git
+Acesse o diretório do projeto:
 
-### `GrafoMonitoramento`
-Grafo de adjacência onde cada nó é uma `CelulaMonitoramento`. As arestas representam o fator de propagação do fogo entre células vizinhas.
+Bash
+cd pyrosat-global
+Execute o simulador:
 
-### `PilhaOcorrencias`
-Pilha LIFO para registrar, consultar e cancelar ocorrências de incêndio em uma área monitorada.
-
----
-
-## Funções principais
-
-- **`calcular_risco(celula)`** — calcula o score de risco (0–100) com base em temperatura, umidade, vento, NDVI e histórico.
-- **`classificar_foco(temp, ndvi, umidade)`** — classifica um foco como `CONFIRMADO`, `SUSPEITO` ou `FALSO`.
-- **`propagar_fogo(grafo, foco_id, horas)`** — simula a propagação via Dijkstra e retorna o tempo estimado para cada célula ser atingida.
-- **`escalonar_alertas(focos)`** — prioriza focos confirmados e define os órgãos a acionar conforme a severidade.
-- **`busca_bfs_area_risco(grafo, origem, raio)`** — mapeia todas as células dentro de um raio de nós ao redor do foco.
-
----
-
-## Níveis de risco
-
-| Score | Nível | Órgãos acionados |
-|---|---|---|
-| 80 – 100 | EMERGÊNCIA | ICMBio, IBAMA, Defesa Civil, Bombeiros, INPE |
-| 60 – 79 | ALERTA | Brigada Local, IBAMA, Defesa Civil |
-| 40 – 59 | ATENÇÃO | Brigada Local, ICMBio |
-| 0 – 39 | MONITORAMENTO | — |
-
----
-
-## Como executar
-
-```bash
+Bash
 python pyrosat.py
-```
 
-A simulação passa por 7 etapas com intervalo de 2 segundos entre cada uma:
+Contexto do Projeto
+Este projeto foi desenvolvido como parte da Global Solution 2026 da FIAP (Faculdade de Informática e Administração Paulista).
 
-1. Construção do grafo de monitoramento
-2. Cálculo de risco por célula
-3. Detecção e classificação de focos
-4. Escalonamento de alertas por prioridade
-5. Simulação de propagação do fogo (Dijkstra)
-6. Mapeamento da área de risco (BFS)
-7. Gerenciamento do histórico de ocorrências (pilha LIFO)
+Equipe:
 
----
+Arthur Serrano Veloso - RM 561542
 
-## Requisitos
+Carlos Eduardo Goes - RM 562389
 
-- Python 3.10+
-- Apenas bibliotecas da stdlib: `heapq`, `math`, `random`, `time`, `collections`, `dataclasses`
+Hyann dos Santos Espindas - RM 563421
 
----
+Israel Araujo Henriques de Moura - RM 559068
 
+Walter Henrique Pereira de Toledo - RM 562476
