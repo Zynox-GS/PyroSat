@@ -84,6 +84,3 @@ A simulação passa por 7 etapas com intervalo de 2 segundos entre cada uma:
 
 ---
 
-## Biomas monitorados
-
-Cerrado · Amazônia · Pantanal · Mata Atlântica · Caatinga · Pampa
