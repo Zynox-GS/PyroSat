@@ -39,10 +39,7 @@ BIOMAS = ["Cerrado", "Amazônia", "Pantanal", "Mata Atlântica", "Caatinga", "Pa
  
 @dataclass
 class CelulaMonitoramento:
-    """
-    Representa uma célula de 1km² no grafo de monitoramento.
-    Cada nó do grafo possui estes atributos (>30 no conjunto do sistema).
-    """
+    
     # Identificação
     id: int
     latitude: float
@@ -146,7 +143,6 @@ class FocoCalor:
  
 @dataclass
 class Ocorrencia:
-    """Registro de ocorrência de incêndio para a pilha histórica."""
     id: int
     focos_ids: list
     area_afetada_ha: float
@@ -163,10 +159,7 @@ class Ocorrencia:
 
  
 class GrafoMonitoramento:
-    """
-    Grafo de adjacência onde cada nó é uma CelulaMonitoramento de 1km².
-    Arestas conectam células vizinhas com peso = fator de propagação do fogo.
-    """
+    
  
     def __init__(self):
         self.nos: dict[int, CelulaMonitoramento] = {}
@@ -196,18 +189,7 @@ class GrafoMonitoramento:
 # ─────────────────────────────────────────────
  
 def calcular_risco(celula: CelulaMonitoramento) -> float:
-    """
-    Calcula o score de risco de incêndio de uma célula (0-100).
- 
-    Considera temperatura, umidade, vento, NDVI, precipitação e histórico.
-    Retorna o score e atualiza celula.score_risco e celula.nivel_risco.
- 
-    Args:
-        celula: CelulaMonitoramento com atributos ambientais preenchidos
- 
-    Returns:
-        float: score de risco entre 0 e 100
-    """
+    
     score = 0.0
  
     # Temperatura (peso 25): > 35°C começa a pontuar
@@ -250,20 +232,7 @@ def calcular_risco(celula: CelulaMonitoramento) -> float:
  
  
 def classificar_foco(temperatura_brilho: float, ndvi: float, umidade: float) -> str:
-    """
-    Classifica um foco de calor detectado por satélite.
- 
-    Lógica de decisão que simula o modelo de IA do PyroSat.
-    Reproduz a regra RN01: foco só gera alerta se CONFIRMADO.
- 
-    Args:
-        temperatura_brilho: temperatura de brilho em °C (GOES-16 Band 7)
-        ndvi:               índice de vegetação normalizado (-1.0 a 1.0)
-        umidade:            umidade relativa do ar em percentual (0-100)
- 
-    Returns:
-        str: "CONFIRMADO", "SUSPEITO" ou "FALSO"
-    """
+    
    
     if ndvi < 0.1:
         return CLASSIFICACAO_FALSO
@@ -284,21 +253,7 @@ def propagar_fogo(
     foco_inicial_id: int,
     horas: int = 6
 ) -> dict[int, float]:
-    """
-    Simula a propagação do fogo a partir de um foco usando Dijkstra.
- 
-    O peso das arestas representa o fator de propagação (vento + vegetação +
-    umidade), então o caminho de menor custo = propagação mais provável.
-    Retorna o tempo estimado (em horas) para o fogo atingir cada célula.
- 
-    Args:
-        grafo:           GrafoMonitoramento com células e arestas configuradas
-        foco_inicial_id: ID da célula onde o foco foi detectado
-        horas:           janela de tempo máxima para simulação
- 
-    Returns:
-        dict: {celula_id: horas_para_atingir} — células acessíveis na janela
-    """
+    
     if foco_inicial_id not in grafo.nos:
         raise ValueError(f"Célula {foco_inicial_id} não existe no grafo.")
  
@@ -329,21 +284,7 @@ def propagar_fogo(
  
  
 def escalonar_alertas(fila_focos: list[FocoCalor]) -> list[FocoCalor]:
-    """
-    Prioriza e escalona alertas usando fila de prioridade (heapq).
- 
-    Implementa o protocolo de acionamento em cascata (RN02):
-    - Foco EMERGÊNCIA (score 80-100): topo da fila, aciona todos os órgãos
-    - Foco ALERTA (score 60-79): aciona Brigada + IBAMA + Defesa Civil
-    - Foco ATENÇÃO (score 40-59): aciona Brigada + ICMBio
-    - Foco MONITORAMENTO (score < 40): apenas registro interno
- 
-    Args:
-        fila_focos: lista de FocoCalor a ser priorizada
- 
-    Returns:
-        list[FocoCalor]: focos ordenados por prioridade (mais urgente primeiro)
-    """
+    
     heap: list[FocoCalor] = []
  
     for foco in fila_focos:
@@ -386,19 +327,7 @@ def busca_bfs_area_risco(
     celula_origem_id: int,
     raio_nos: int = 5
 ) -> list[int]:
-    """
-    BFS para encontrar todas as células dentro de um raio de nós a partir
-    de uma célula de origem. Útil para delimitar área de risco ao redor
-    de um foco confirmado.
- 
-    Args:
-        grafo:            GrafoMonitoramento
-        celula_origem_id: ID da célula central (foco)
-        raio_nos:         quantos "saltos" de célula incluir
- 
-    Returns:
-        list[int]: IDs das células na área de risco
-    """
+    
     visitados = {celula_origem_id}
     fila = deque([(celula_origem_id, 0)])
     area_risco = [celula_origem_id]
@@ -422,16 +351,7 @@ def busca_bfs_area_risco(
 
  
 class PilhaOcorrencias:
-    """
-    Pilha LIFO para gerenciar o histórico de ocorrências de uma área.
- 
-    Operações:
-        push   — registra nova ocorrência
-        pop    — remove a mais recente (usado para "desfazer alerta" / cancelar falso positivo)
-        peek   — consulta a mais recente sem remover
-        buscar — percorre a pilha para relatório
-    """
- 
+    
     def __init__(self, area_id: int):
         self.area_id = area_id
         self._pilha: list[Ocorrencia] = []
