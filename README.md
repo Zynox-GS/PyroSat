@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔥 PyroSat Global
+# 🔥 PyroSat 
 
 **Sistema de Detecção e Alerta Precoce de Incêndios Florestais Globais**
 
@@ -14,7 +14,7 @@
 
 ## 📋 Visão Geral
 
-O **PyroSat Global** é uma simulação computacional construída em Python que utiliza estruturas de dados clássicas para monitorar, detectar, escalonar e prever a propagação de incêndios florestais. O sistema processa dados simulados de satélites, condições climáticas e cobertura vegetal para classificar riscos, alertar órgãos competentes e prever o avanço do fogo no terreno.
+O **PyroSat** é uma simulação computacional construída em Python que utiliza estruturas de dados clássicas para monitorar, detectar, escalonar e prever a propagação de incêndios florestais. O sistema processa dados simulados de satélites, condições climáticas e cobertura vegetal para classificar riscos, alertar órgãos competentes e prever o avanço do fogo no terreno.
 
 ---
 
