@@ -64,6 +64,59 @@ Incêndios florestais se propagam rapidamente, mas os sistemas de alertas atuais
 
 ---
 
+## 🔧 Funções Principais (`def`)
+
+### `calcular_risco(celula)`
+Calcula o score de risco de incêndio (0–100) de uma célula de monitoramento. Leva em conta temperatura, umidade, velocidade do vento, índice de vegetação (NDVI), precipitação nas últimas 24h e histórico de ocorrências. Atualiza os atributos `score_risco` e `nivel_risco` diretamente na célula.
+
+---
+
+### `classificar_foco(temperatura_brilho, ndvi, umidade)`
+Classifica um foco de calor detectado por satélite como **CONFIRMADO**, **SUSPEITO** ou **FALSO**. Utiliza temperatura de brilho, NDVI e umidade relativa para filtrar ruídos térmicos e distinguir focos reais de falsos positivos.
+
+---
+
+### `propagar_fogo(grafo, foco_inicial_id, horas)`
+Simula a propagação do fogo a partir de um foco inicial usando o **algoritmo de Dijkstra**. Calcula o tempo estimado (em horas) para o fogo atingir cada célula vizinha, considerando o peso das arestas como fator de propagação (vento + vegetação). Retorna apenas as células alcançáveis dentro da janela de horas definida.
+
+---
+
+### `escalonar_alertas(fila_focos)`
+Escalonamento de focos confirmados por prioridade usando **fila de mínimo (heapq)**. Define o nível de alerta e os órgãos a serem acionados conforme o score de severidade, retornando os focos ordenados do mais crítico para o menos crítico.
+
+---
+
+### `busca_bfs_area_risco(grafo, celula_origem_id, raio_nos)`
+Mapeia a zona de risco ao redor de um foco usando **Busca em Largura (BFS)**. Percorre o grafo a partir da célula de origem até o raio definido em número de nós, retornando todas as células que podem ser afetadas pela propagação imediata do fogo.
+
+---
+
+### `criar_grafo_exemplo(num_celulas)`
+Gera um grafo de monitoramento com células aleatórias para fins de simulação. Cria células com dados ambientais, de vegetação, infraestrutura e satélite gerados aleatoriamente, e conecta células adjacentes com arestas ponderadas pelo vento e NDVI.
+
+---
+
+### `gerar_focos_exemplo(grafo, qtd)`
+Gera uma lista de focos de calor simulados a partir das células do grafo. Os primeiros focos recebem temperaturas de brilho altas (450–850°C) para simular incêndios confirmados; os demais recebem temperaturas baixas (40–150°C) para simular suspeitos ou falsos positivos.
+
+---
+
+### `executar_simulacao()`
+Executa o pipeline completo de detecção e alerta do PyroSat Global. Demonstra sequencialmente: construção do grafo, cálculo de risco, detecção de focos via satélite, escalonamento por fila de prioridade, propagação do fogo com Dijkstra, mapeamento de zona de risco com BFS e gerenciamento do histórico de ocorrências com pilha LIFO.
+
+---
+
+### `PilhaOcorrencias` — Métodos
+
+| Método | Descrição |
+|--------|-----------|
+| `push(ocorrencia)` | Registra uma nova ocorrência no topo da pilha. |
+| `pop()` | Remove e retorna a ocorrência mais recente (usado para cancelar alarmes falsos). |
+| `peek()` | Retorna a ocorrência mais recente sem removê-la. |
+| `listar_historico()` | Retorna todas as ocorrências do mais recente para o mais antigo. |
+| `total()` | Retorna o número total de ocorrências na pilha. |
+| `esta_vazia()` | Retorna `True` se a pilha não contiver nenhuma ocorrência. |
+
 ## ▶️ Como Executar
 
 > O projeto utiliza **exclusivamente a biblioteca padrão do Python**. Nenhuma instalação de pacote externo é necessária.
